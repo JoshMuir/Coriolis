@@ -18,6 +18,9 @@
     V1.0 : PoC Setup LoRa communication and send basic wind data
 */
 
+
+SPIClass LoRaSPI(HSPI);
+
 LoRaConfig defaultConfig = {
     915E6,    // frequency
     125E3,    // bandwidth
@@ -31,17 +34,15 @@ LoRaConfig defaultConfig = {
 
 
 
-Target::Target(int address, LoRaConfig config) : _deviceAddress(address), _config(config) 
+Target::Target(int address, LoRaConfig config) : _deviceAddress(address), _config(config)
 {
     // Constructor implementation
-    bool _isInitialized = false;
-    bool _busy = false;
-    bool _sendSuccess = false;
+    _isInitialized = false;
+    _busy = false;
+    _sendSuccess = false;
 }
 
-Target::Target(int address) : 
-_deviceAddress(address),
-_config(defaultConfig)
+Target::Target(int address) : _deviceAddress(address), _config(defaultConfig)
 {
     _isInitialized = false;
     _busy = false;
@@ -51,7 +52,8 @@ _config(defaultConfig)
 void Target::begin()
 {
     // Initialise LoRa module as per API 
-    LoRa.setSPI(SPI);
+    LoRa.setSPI(LoRaSPI);
+    LoRa.setPins(CS, RST, DIO1); // Set the pins for LoRa module
     LoRa.setTxPower(_config.power);
     LoRa.setSpreadingFactor(_config.spreadingFactor);
     LoRa.setBandwidth(_config.bandwidth);
@@ -63,16 +65,19 @@ void Target::begin()
 
 bool Target::getInitStatus()
 {
-    return this->_isInitialized;
+    return _isInitialized;
 }
 
+
+// Packet structure: "<speed>|<direction>"
 bool Target::sendMessage(windData_t windData)
 {
-    //while(LoRa.beginPacket() == 0) delay(100);
+    //while(LoRa.beginPacket() == 0) delay(100); // for async ops
     LoRa.beginPacket();
-    LoRa.write(windData.speed, sizeof(windData.speed));
-    LoRa.write(windData.direction, sizeof(windData.direction));
-    LoRa.endPacket();
+    LoRa.print(windData.speed);
+    LoRa.print("|");
+    LoRa.print(windData.direction);
+    LoRa.endPacket(); // LoRa.endPacket(true) // for async ops 
 }
 
 bool Target::sendMessage(String &message)
@@ -82,3 +87,6 @@ bool Target::sendMessage(String &message)
     LoRa.endPacket();
     return true;
 }
+
+
+
